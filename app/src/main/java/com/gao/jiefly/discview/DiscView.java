@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
@@ -21,18 +20,36 @@ import android.view.View;
  * Fighting_jiiiiie
  */
 public class DiscView extends View implements View.OnClickListener {
-    Paint paint = new Paint();
-    Paint picPaint = new Paint();
-    Paint circelPaint = new Paint();
-    float degree = 0;
+    private Paint paint = new Paint();
+    private Paint picPaint = new Paint();
+    private float degree = 0;
+//  中间的裁减为圆形之后的图片
     private Bitmap circleBitmap;
-    private Bitmap flagBitmap;
-    int width;
+//    中圈黑环的图片
+    private Bitmap blackDiskBitmap;
+//    外圈白色图片
+    private Bitmap runCircleBitmap;
+//    view上部分指示器图片
+    private Bitmap needleBitmap;
+//  view的宽度
+    private int width;
+//  中间图片的原图
+    private Bitmap pic;
+//  转动标志位
     private boolean isRotate = false;
-    private float size = 0.95f;
-    private int flagState = 0;
-
+    //图片的缩放比
+    private float size = 0.88f;
+//    是否是第一次onDraw
     private boolean isFirstDraw = true;
+//  设置view中间的图片
+    public void setPic(Bitmap pic) {
+        this.pic = pic;
+        isRotate = false;
+        circleBitmap = getCircleBitmap(width);
+        degree = 0;
+        invalidate();
+    }
+
 
     public DiscView(Context context) {
         super(context);
@@ -43,21 +60,21 @@ public class DiscView extends View implements View.OnClickListener {
 //        设置画笔抗锯齿
         paint.setAntiAlias(true);
         picPaint.setAntiAlias(true);
-        circelPaint.setAntiAlias(true);
-        circelPaint.setStrokeWidth(20);
-        circelPaint.setColor(Color.argb(200, 36, 36, 36));
-        circelPaint.setStyle(Paint.Style.STROKE);
-//        设置画笔颜色
-        paint.setColor(Color.argb(200, 36, 36, 36));
+        picPaint.setFilterBitmap(true);
 
+        blackDiskBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.play_disc);
+        runCircleBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.fm_run_circle3);
+        needleBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.play_needle);
     }
 
     public DiscView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        init();
     }
 
     public DiscView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        init();
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -68,6 +85,7 @@ public class DiscView extends View implements View.OnClickListener {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
         int widthSpecMode = MeasureSpec.getMode(widthMeasureSpec);
         int widthSpecSize = MeasureSpec.getSize(widthMeasureSpec);
         int heightSpecMode = MeasureSpec.getMode(heightMeasureSpec);
@@ -86,33 +104,40 @@ public class DiscView extends View implements View.OnClickListener {
         }
     }
 
+
+
     @Override
     protected void onDraw(Canvas canvas) {
-//        super.onDraw(canvas);
+        super.onDraw(canvas);
         if (isFirstDraw) {
-            width = getMeasuredWidth();
-            circleBitmap = getCircleBitmap(width);
             isFirstDraw = false;
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(width / 8);
-            flagBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.flag);
+            width = getMeasuredWidth() - getPaddingLeft() - getPaddingRight();
+            pic = BitmapFactory.decodeResource(getResources(), R.drawable.defaule_pic);
+            blackDiskBitmap = resizeBitmap(width, blackDiskBitmap);
+            runCircleBitmap = resizeBitmap(width, runCircleBitmap);
+            circleBitmap = getCircleBitmap(width);
+            needleBitmap = resizeBitmap((int) (width * 0.34), needleBitmap);
         }
-        if (flagState == 0 && isRotate){
-            flagState = 1;
-            canvas.rotate(30,width/2-50,0);
-            canvas.drawBitmap(flagBitmap,width/2-50,0,paint);
-            
+//      将坐标系零点移到正确的位置（y:view下半部分正方形区域）
+        canvas.translate(getPaddingLeft(), (float) (0.25 * width + getPaddingTop()));
+//      旋转画布
+        canvas.rotate(degree, width / 2, width / 2);
+//      画最外层的一小圈模糊透明的圈圈
+        canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
+//        画中间的黑色圈圈
+        canvas.drawBitmap(blackDiskBitmap, 0, 0, paint);
+//       画最中间的图片
+        canvas.drawBitmap(circleBitmap, (float) (width * (1 - size * 0.75) / 2), (float) (width * (1 - size * 0.75) / 2), new Paint());
+//        将画布的旋转角度抵消
+        canvas.rotate(-degree, width / 2, width / 2);
+//        如果view的状态是转动时，将画布以指示器的支点为中心旋转20度
+//        否则不旋转画布
+        if (isRotate) {
+            canvas.rotate(-20, width / 2, (float) (-0.25 * width));
         }
+//        画view上部分的指示器
+        canvas.drawBitmap(needleBitmap, (float) (width / 2 - 6 * needleBitmap.getWidth() / 31), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187), paint);
 
-        canvas.rotate(degree, width / 2, width * 3 / 4);
-//        将画布移到控件下方的正方形区域中心点
-        canvas.translate(width / 2, width * 3 / 4);
-
-//        先画外层的黑胶唱片的边缘
-        canvas.drawCircle(0, 0, width / 2 - width / 16, paint);
-//        之后画内层的照片
-        canvas.drawBitmap(circleBitmap, -(size * width * 3 / 8), -(size * width * 3 / 8), picPaint);
-        canvas.drawCircle(0, 0, size * width * 3 / 8,paint);
         if (isRotate) {
             if (degree == 360) {
                 degree = 0;
@@ -122,35 +147,60 @@ public class DiscView extends View implements View.OnClickListener {
 //        每隔0.1秒移动10°
             postInvalidateDelayed(100);
         }
+    }
 
-        Log.e("jiefly", "invalide:" + degree);
+    private Bitmap resizeBitmap(int dstWidth, Bitmap srcBitmap) {
+//        缩放系数
+        float scale = 1.0f * dstWidth / srcBitmap.getWidth();
+//        缩放矩阵
+        Matrix matrix = new Matrix();
+        matrix.setScale(scale, scale);
+        return Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth(), srcBitmap.getHeight(), matrix, true);
     }
 
     private Bitmap getCircleBitmap(int width) {
-        Bitmap pic = BitmapFactory.decodeResource(getResources(), R.drawable.pic);
+        if (pic == null) {
+            return null;
+        }
         int picWidth = pic.getWidth();
         int picHeight = pic.getHeight();
         Log.e("jiefly", "width:" + picWidth + "height:" + picHeight);
         Matrix matrix = new Matrix();
-        float scale = size * 2 * (3 * width) / (picWidth * 8);
+        float scale = size * 2 * (3 * width) / (Math.min(picHeight, picWidth) * 8);
         matrix.postScale(scale, scale); //长和宽放大缩小的比例
         Bitmap resizeBmp = Bitmap.createBitmap(pic, 0, 0, picWidth, picHeight, matrix, true);
-        Bitmap target = Bitmap.createBitmap(resizeBmp.getWidth(), resizeBmp.getHeight(), Bitmap.Config.ARGB_8888);
+//        新建一个正方形的bitmap
+        Bitmap target = Bitmap.createBitmap(Math.min(resizeBmp.getHeight(), resizeBmp.getWidth()), Math.min(resizeBmp.getHeight(), resizeBmp.getWidth()), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(target);
+        canvas.drawARGB(0, 0, 0, 0);
         canvas.drawCircle(size * width * 3 / 8, size * width * 3 / 8, size * width * 3 / 8, picPaint);
         picPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
-        canvas.drawBitmap(resizeBmp, 0, 0, picPaint);
-        /*picPaint.setXfermode(null);
-        picPaint.setStyle(Paint.Style.STROKE);
-        picPaint.setStrokeWidth(30);
-        picPaint.setColor(Color.argb(255,0,0,0));
-        canvas.drawCircle(size*width*3/8,size*width*3/8,size*width*3/8,picPaint);*/
+//        分两种情况来截取正方形的图片
+        if (resizeBmp.getHeight() > resizeBmp.getWidth()) {
+            canvas.drawBitmap(resizeBmp, 0, (resizeBmp.getHeight() - resizeBmp.getWidth()) / 2, picPaint);
+        } else {
+            canvas.drawBitmap(resizeBmp, (resizeBmp.getWidth() - resizeBmp.getHeight()) / 2, 0, picPaint);
+        }
+//        将picPaint的Xfermode设置为空，以便下次切换图片的时候使用
+
+        picPaint.setXfermode(null);
+        Log.e("jiefly", ":" + (float) target.getWidth() / width);
         return target;
     }
 
     @Override
     public void onClick(View v) {
+        togglePlay();
+    }
+
+    //  改变view的状态
+    private void togglePlay() {
         isRotate = !isRotate;
         invalidate();
+    }
+
+    //   获取view状态
+    public boolean isPlay() {
+        return isRotate;
     }
 }
