@@ -13,6 +13,10 @@ import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by jiefly on 2016/6/7.
@@ -20,28 +24,46 @@ import android.view.View;
  * Fighting_jiiiiie
  */
 public class DiscView extends View implements View.OnClickListener {
+    //  播放列表list
+    private List<String> uriList = new ArrayList<>();
     private Paint paint = new Paint();
     private Paint picPaint = new Paint();
     private float degree = 0;
-//  中间的裁减为圆形之后的图片
+    private int rotateWay = 1;
+    //  中间的裁减为圆形之后的图片
     private Bitmap circleBitmap;
-//    中圈黑环的图片
+    //    中圈黑环的图片
     private Bitmap blackDiskBitmap;
-//    外圈白色图片
+    //    外圈白色图片
     private Bitmap runCircleBitmap;
-//    view上部分指示器图片
+    //    view上部分指示器图片
     private Bitmap needleBitmap;
-//  view的宽度
+    //  view的宽度
     private int width;
-//  中间图片的原图
+    //  中间图片的原图
     private Bitmap pic;
-//  转动标志位
+    //  转动标志位
     private boolean isRotate = false;
     //图片的缩放比
     private float size = 0.88f;
-//    是否是第一次onDraw
+    //    是否是第一次onDraw
     private boolean isFirstDraw = true;
-//  设置view中间的图片
+
+
+    //  唱片黑色边框旋转矩阵
+    private Matrix boundMatrix = new Matrix();
+    //    图片旋转矩阵
+    private Matrix picMatrix = new Matrix();
+    //    needle旋转矩阵
+    private Matrix needleMatrix = new Matrix();
+    private int height;
+
+    //    设置播放列表
+    public void setUriList(List<String> uriList) {
+        this.uriList = uriList;
+    }
+
+    //  设置view中间的图片
     public void setPic(Bitmap pic) {
         this.pic = pic;
         isRotate = false;
@@ -105,48 +127,80 @@ public class DiscView extends View implements View.OnClickListener {
     }
 
 
-
+    // 通过旋转画布的方式对图片进行旋转
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (isFirstDraw) {
             isFirstDraw = false;
             width = getMeasuredWidth() - getPaddingLeft() - getPaddingRight();
+            height = getMeasuredHeight() - getPaddingTop() - getPaddingBottom();
             pic = BitmapFactory.decodeResource(getResources(), R.drawable.defaule_pic);
             blackDiskBitmap = resizeBitmap(width, blackDiskBitmap);
             runCircleBitmap = resizeBitmap(width, runCircleBitmap);
             circleBitmap = getCircleBitmap(width);
             needleBitmap = resizeBitmap((int) (width * 0.34), needleBitmap);
         }
-//      将坐标系零点移到正确的位置（y:view下半部分正方形区域）
-        canvas.translate(getPaddingLeft(), (float) (0.25 * width + getPaddingTop()));
+        switch (rotateWay) {
+            case 0:
+                //      将坐标系零点移到正确的位置（y:view下半部分正方形区域）
+                canvas.translate(getPaddingLeft(), (float) (0.25 * width + getPaddingTop()));
 //      旋转画布
-        canvas.rotate(degree, width / 2, width / 2);
+                canvas.rotate(degree, width / 2, width / 2);
 //      画最外层的一小圈模糊透明的圈圈
-        canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
+                canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
 //        画中间的黑色圈圈
-        canvas.drawBitmap(blackDiskBitmap, 0, 0, paint);
+                canvas.drawBitmap(blackDiskBitmap, 0, 0, paint);
 //       画最中间的图片
-        canvas.drawBitmap(circleBitmap, (float) (width * (1 - size * 0.75) / 2), (float) (width * (1 - size * 0.75) / 2), new Paint());
+                canvas.drawBitmap(circleBitmap, (float) (width * (1 - size * 0.75) / 2), (float) (width * (1 - size * 0.75) / 2), new Paint());
 //        将画布的旋转角度抵消
-        canvas.rotate(-degree, width / 2, width / 2);
+                canvas.rotate(-degree, width / 2, width / 2);
 //        如果view的状态是转动时，将画布以指示器的支点为中心旋转20度
 //        否则不旋转画布
-        if (isRotate) {
-            canvas.rotate(-20, width / 2, (float) (-0.25 * width));
-        }
+                if (isRotate) {
+                    canvas.rotate(-20, width / 2, (float) (-0.25 * width));
+                }
 //        画view上部分的指示器
-        canvas.drawBitmap(needleBitmap, (float) (width / 2 - 6 * needleBitmap.getWidth() / 31), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187), paint);
+                canvas.drawBitmap(needleBitmap, (float) (width / 2 - 6 * needleBitmap.getWidth() / 31), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187), paint);
+                break;
+            case 1:
+
+                boundMatrix.setRotate(degree, blackDiskBitmap.getWidth() / 2, blackDiskBitmap.getHeight() / 2);
+                picMatrix.setRotate(degree, circleBitmap.getWidth() / 2, circleBitmap.getHeight() / 2);
+                canvas.translate(getPaddingLeft(), getPaddingTop() + width / 4);
+                canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
+                canvas.drawBitmap(blackDiskBitmap, boundMatrix, paint);
+                canvas.translate((float) ((1 - 0.75 * size) * width / 2), (float) ((1 - 0.75 * size) * width) / 2);
+                canvas.drawBitmap(circleBitmap, picMatrix, paint);
+                canvas.translate((float) (width / 2 - 6 * needleBitmap.getWidth() / 31 - ((1 - 0.75 * size) * width / 2)), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187- ((1-0.75*size)*width/2)));
+                if (isRotate) {
+                    needleMatrix.setRotate(-20,6 * needleBitmap.getWidth() / 31,24 * needleBitmap.getHeight() / 187);
+                }else {
+                    needleMatrix.setRotate(0);
+                }
+                canvas.drawBitmap(needleBitmap, needleMatrix, paint);
+        }
 
         if (isRotate) {
             if (degree == 360) {
                 degree = 0;
             } else {
-                degree += 10;
+                degree += 5;
             }
 //        每隔0.1秒移动10°
-            postInvalidateDelayed(100);
+            invalidate();
         }
+    }
+
+    @Override
+    public void setAnimation(Animation animation) {
+        super.setAnimation(animation);
+
+    }
+
+    @Override
+    public void startAnimation(Animation animation) {
+        super.startAnimation(animation);
     }
 
     private Bitmap resizeBitmap(int dstWidth, Bitmap srcBitmap) {
@@ -202,5 +256,15 @@ public class DiscView extends View implements View.OnClickListener {
     //   获取view状态
     public boolean isPlay() {
         return isRotate;
+    }
+
+    //    next
+    public void next() {
+
+    }
+
+    //    prev
+    public void prev() {
+
     }
 }

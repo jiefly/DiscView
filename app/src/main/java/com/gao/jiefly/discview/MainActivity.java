@@ -32,8 +32,7 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intentGetPic = new Intent();
-                intentGetPic = new Intent("android.intent.action.GET_CONTENT");
+                Intent intentGetPic = new Intent("android.intent.action.GET_CONTENT");
                 intentGetPic.setType("image/*");
                 intentGetPic.putExtra("crop", true);
                 intentGetPic.putExtra("scale", true);
