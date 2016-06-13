@@ -49,6 +49,8 @@ public class DiscView extends View implements View.OnClickListener {
     //    是否是第一次onDraw
     private boolean isFirstDraw = true;
 
+    private boolean next = false;
+    private boolean prev = false;
 
     //  唱片黑色边框旋转矩阵
     private Matrix boundMatrix = new Matrix();
@@ -56,7 +58,12 @@ public class DiscView extends View implements View.OnClickListener {
     private Matrix picMatrix = new Matrix();
     //    needle旋转矩阵
     private Matrix needleMatrix = new Matrix();
+    //    偏移矩阵
+    private Matrix translationMatrix = new Matrix();
     private int height;
+    private long startTime;
+    private float translateValue = 0;
+
 
     //    设置播放列表
     public void setUriList(List<String> uriList) {
@@ -164,18 +171,66 @@ public class DiscView extends View implements View.OnClickListener {
                 canvas.drawBitmap(needleBitmap, (float) (width / 2 - 6 * needleBitmap.getWidth() / 31), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187), paint);
                 break;
             case 1:
-
                 boundMatrix.setRotate(degree, blackDiskBitmap.getWidth() / 2, blackDiskBitmap.getHeight() / 2);
                 picMatrix.setRotate(degree, circleBitmap.getWidth() / 2, circleBitmap.getHeight() / 2);
-                canvas.translate(getPaddingLeft(), getPaddingTop() + width / 4);
+                if (next){
+                    long delaTime = System.currentTimeMillis() - startTime;
+                    if (delaTime < 1000 || translateValue < width) {
+                        if (delaTime > 900) {
+                            translateValue = width;
+                        } else
+                            translateValue = width * delaTime / 1000;
+                    }else {
+                        next = false;
+                        isRotate = true;
+                        translateValue = 0;
+                        degree = 0;
+                    }
+                }
+                if (prev) {
+                    long delaTime = System.currentTimeMillis() - startTime;
+                    if (delaTime < 1000 || Math.abs(translateValue) < width) {
+                        if (delaTime>900){
+                            translateValue = -width;
+                        }
+                        else
+                            translateValue = -width * delaTime / 1000;
+                    } else {
+                        prev = false;
+                        isRotate = true;
+                        translateValue = 0;
+                        degree = 0;
+                    }
+                }
+                canvas.translate(getPaddingLeft() - translateValue, getPaddingTop() + width / 4);
                 canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
                 canvas.drawBitmap(blackDiskBitmap, boundMatrix, paint);
+                if (next) {
+                    canvas.translate(width,0);
+                    canvas.drawBitmap(blackDiskBitmap, boundMatrix , paint);
+                    canvas.translate(-width,0);
+                }
+                if (prev) {
+                    canvas.translate(-width,0);
+                    canvas.drawBitmap(blackDiskBitmap, boundMatrix , paint);
+                    canvas.translate(width,0);
+                }
                 canvas.translate((float) ((1 - 0.75 * size) * width / 2), (float) ((1 - 0.75 * size) * width) / 2);
                 canvas.drawBitmap(circleBitmap, picMatrix, paint);
-                canvas.translate((float) (width / 2 - 6 * needleBitmap.getWidth() / 31 - ((1 - 0.75 * size) * width / 2)), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187- ((1-0.75*size)*width/2)));
-                if (isRotate) {
-                    needleMatrix.setRotate(-20,6 * needleBitmap.getWidth() / 31,24 * needleBitmap.getHeight() / 187);
-                }else {
+                if (next) {
+                    canvas.translate(width,0);
+                    canvas.drawBitmap(circleBitmap, picMatrix, paint);
+                    canvas.translate(-width,0);
+                }
+                if (prev) {
+                    canvas.translate(-width,0);
+                    canvas.drawBitmap(circleBitmap, picMatrix, paint);
+                    canvas.translate(width,0);
+                }
+                canvas.translate((float) (width / 2 - 6 * needleBitmap.getWidth() / 31 - ((1 - 0.75 * size) * width / 2) + translateValue), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187 - ((1 - 0.75 * size) * width / 2)));
+                if (!isRotate || next || prev) {
+                    needleMatrix.setRotate(-20, 6 * needleBitmap.getWidth() / 31, 24 * needleBitmap.getHeight() / 187);
+                } else {
                     needleMatrix.setRotate(0);
                 }
                 canvas.drawBitmap(needleBitmap, needleMatrix, paint);
@@ -185,11 +240,15 @@ public class DiscView extends View implements View.OnClickListener {
             if (degree == 360) {
                 degree = 0;
             } else {
-                degree += 5;
+                degree += 4;
             }
 //        每隔0.1秒移动10°
             invalidate();
         }
+        if (next || prev)
+            invalidate();
+
+        Log.e("jiefly", "onDraw");
     }
 
     @Override
@@ -245,11 +304,15 @@ public class DiscView extends View implements View.OnClickListener {
     @Override
     public void onClick(View v) {
         togglePlay();
+//        next();
+//        prev();
     }
 
     //  改变view的状态
     private void togglePlay() {
         isRotate = !isRotate;
+        next = false;
+        prev = false;
         invalidate();
     }
 
@@ -260,11 +323,25 @@ public class DiscView extends View implements View.OnClickListener {
 
     //    next
     public void next() {
-
+        /*ValueAnimator valueAnimator = ObjectAnimator.ofFloat(this,"rotation",0,360);
+        this.setPivotX(width/2);
+        this.setPivotY((float) (0.75*width));
+        valueAnimator.setRepeatCount(-1);
+        valueAnimator.setDuration(10000).start();*/
+//        暂停旋转
+        isRotate = false;
+        invalidate();
+        next = true;
+        startTime = System.currentTimeMillis();
+        invalidate();
     }
 
     //    prev
     public void prev() {
-
+        isRotate = false;
+        invalidate();
+        prev = true;
+        startTime = System.currentTimeMillis();
+        invalidate();
     }
 }

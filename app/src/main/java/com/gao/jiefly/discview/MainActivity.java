@@ -26,19 +26,38 @@ public class MainActivity extends AppCompatActivity {
                 discView.onClick(v);
             }
         });
-
-        Button button = (Button) findViewById(R.id.button);
-        button.setText("改变图片");
-        button.setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.imageView).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intentGetPic = new Intent("android.intent.action.GET_CONTENT");
-                intentGetPic.setType("image/*");
-                intentGetPic.putExtra("crop", true);
-                intentGetPic.putExtra("scale", true);
-                startActivityForResult(intentGetPic,GET_PICTURE);
+                discView.prev();
             }
         });
+        findViewById(R.id.imageView2).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                discView.onClick(discView);
+            }
+        });
+        findViewById(R.id.imageView3).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                discView.next();
+            }
+        });
+        Button button = (Button) findViewById(R.id.button);
+        if (button != null) {
+            button.setText("改变图片");
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intentGetPic = new Intent("android.intent.action.GET_CONTENT");
+                    intentGetPic.setType("image/*");
+                    intentGetPic.putExtra("crop", true);
+                    intentGetPic.putExtra("scale", true);
+                    startActivityForResult(intentGetPic,GET_PICTURE);
+                }
+            });
+        }
     }
 
     @Override
