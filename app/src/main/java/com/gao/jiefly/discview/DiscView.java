@@ -12,24 +12,31 @@ import android.graphics.PorterDuffXfermode;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by jiefly on 2016/6/7.
  * Email:jiefly1993@gmail.com
  * Fighting_jiiiiie
  */
-public class DiscView extends View implements View.OnClickListener {
+public class DiscView extends View implements View.OnClickListener, View.OnTouchListener {
+    private static final String TAG = "jiefly";
     //  播放列表list
-    private List<String> uriList = new ArrayList<>();
+    private List<Integer> uriList = new ArrayList<>();
     private Paint paint = new Paint();
     private Paint picPaint = new Paint();
     private float degree = 0;
     private int rotateWay = 1;
+    private Map<String, Bitmap> showPics = new HashMap<>();
+    //    index 当前的图片在uriList中的位置
+    private int picIndex = 3;
     //  中间的裁减为圆形之后的图片
     private Bitmap circleBitmap;
     //    中圈黑环的图片
@@ -58,23 +65,23 @@ public class DiscView extends View implements View.OnClickListener {
     private Matrix picMatrix = new Matrix();
     //    needle旋转矩阵
     private Matrix needleMatrix = new Matrix();
-    //    偏移矩阵
-    private Matrix translationMatrix = new Matrix();
-    private int height;
     private long startTime;
     private float translateValue = 0;
 
 
     //    设置播放列表
-    public void setUriList(List<String> uriList) {
+    public void setUriList(List<Integer> uriList) {
         this.uriList = uriList;
+//        如果是在onMeasure之前设置了uriList，则不能直接在这里设置pic，因为此时width还没有measure出来
+        if (!isFirstDraw)
+            initShowPics();
     }
 
     //  设置view中间的图片
     public void setPic(Bitmap pic) {
         this.pic = pic;
         isRotate = false;
-        circleBitmap = getCircleBitmap(width);
+        showPics.put("current",getCircleBitmap(width,pic));
         degree = 0;
         invalidate();
     }
@@ -90,7 +97,6 @@ public class DiscView extends View implements View.OnClickListener {
         paint.setAntiAlias(true);
         picPaint.setAntiAlias(true);
         picPaint.setFilterBitmap(true);
-
         blackDiskBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.play_disc);
         runCircleBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.fm_run_circle3);
         needleBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.play_needle);
@@ -141,12 +147,14 @@ public class DiscView extends View implements View.OnClickListener {
         if (isFirstDraw) {
             isFirstDraw = false;
             width = getMeasuredWidth() - getPaddingLeft() - getPaddingRight();
-            height = getMeasuredHeight() - getPaddingTop() - getPaddingBottom();
             pic = BitmapFactory.decodeResource(getResources(), R.drawable.defaule_pic);
             blackDiskBitmap = resizeBitmap(width, blackDiskBitmap);
             runCircleBitmap = resizeBitmap(width, runCircleBitmap);
-            circleBitmap = getCircleBitmap(width);
+            circleBitmap = getCircleBitmap(width, pic);
             needleBitmap = resizeBitmap((int) (width * 0.34), needleBitmap);
+            if (showPics.size() == 0) {
+                initShowPics();
+            }
         }
         switch (rotateWay) {
             case 0:
@@ -172,60 +180,63 @@ public class DiscView extends View implements View.OnClickListener {
                 break;
             case 1:
                 boundMatrix.setRotate(degree, blackDiskBitmap.getWidth() / 2, blackDiskBitmap.getHeight() / 2);
-                picMatrix.setRotate(degree, circleBitmap.getWidth() / 2, circleBitmap.getHeight() / 2);
-                if (next){
+                picMatrix.setRotate(degree, showPics.get("current").getWidth() / 2, showPics.get("current").getHeight() / 2);
+                if (next) {
                     long delaTime = System.currentTimeMillis() - startTime;
                     if (delaTime < 1000 || translateValue < width) {
                         if (delaTime > 900) {
                             translateValue = width;
                         } else
                             translateValue = width * delaTime / 1000;
-                    }else {
+                    } else {
                         next = false;
                         isRotate = true;
+                        picIndex++;
                         translateValue = 0;
                         degree = 0;
+                        refreshShowPic(1);
                     }
                 }
                 if (prev) {
                     long delaTime = System.currentTimeMillis() - startTime;
                     if (delaTime < 1000 || Math.abs(translateValue) < width) {
-                        if (delaTime>900){
+                        if (delaTime > 900) {
                             translateValue = -width;
-                        }
-                        else
+                        } else
                             translateValue = -width * delaTime / 1000;
                     } else {
                         prev = false;
                         isRotate = true;
+                        picIndex--;
                         translateValue = 0;
                         degree = 0;
+                        refreshShowPic(0);
                     }
                 }
                 canvas.translate(getPaddingLeft() - translateValue, getPaddingTop() + width / 4);
                 canvas.drawBitmap(runCircleBitmap, 0, 0, paint);
                 canvas.drawBitmap(blackDiskBitmap, boundMatrix, paint);
                 if (next) {
-                    canvas.translate(width,0);
-                    canvas.drawBitmap(blackDiskBitmap, boundMatrix , paint);
-                    canvas.translate(-width,0);
+                    canvas.translate(width, 0);
+                    canvas.drawBitmap(blackDiskBitmap, boundMatrix, paint);
+                    canvas.translate(-width, 0);
                 }
                 if (prev) {
-                    canvas.translate(-width,0);
-                    canvas.drawBitmap(blackDiskBitmap, boundMatrix , paint);
-                    canvas.translate(width,0);
+                    canvas.translate(-width, 0);
+                    canvas.drawBitmap(blackDiskBitmap, boundMatrix, paint);
+                    canvas.translate(width, 0);
                 }
                 canvas.translate((float) ((1 - 0.75 * size) * width / 2), (float) ((1 - 0.75 * size) * width) / 2);
-                canvas.drawBitmap(circleBitmap, picMatrix, paint);
+                canvas.drawBitmap(showPics.get("current"), picMatrix, paint);
                 if (next) {
-                    canvas.translate(width,0);
-                    canvas.drawBitmap(circleBitmap, picMatrix, paint);
-                    canvas.translate(-width,0);
+                    canvas.translate(width, 0);
+                    canvas.drawBitmap(showPics.get("next"), picMatrix, paint);
+                    canvas.translate(-width, 0);
                 }
                 if (prev) {
-                    canvas.translate(-width,0);
-                    canvas.drawBitmap(circleBitmap, picMatrix, paint);
-                    canvas.translate(width,0);
+                    canvas.translate(-width, 0);
+                    canvas.drawBitmap(showPics.get("prev"), picMatrix, paint);
+                    canvas.translate(width, 0);
                 }
                 canvas.translate((float) (width / 2 - 6 * needleBitmap.getWidth() / 31 - ((1 - 0.75 * size) * width / 2) + translateValue), (float) (-0.25 * width - 24 * needleBitmap.getHeight() / 187 - ((1 - 0.75 * size) * width / 2)));
                 if (!isRotate || next || prev) {
@@ -242,13 +253,43 @@ public class DiscView extends View implements View.OnClickListener {
             } else {
                 degree += 4;
             }
-//        每隔0.1秒移动10°
+//        每次刷新移动10°
             invalidate();
         }
+
         if (next || prev)
             invalidate();
 
-        Log.e("jiefly", "onDraw");
+//        Log.e(TAG, "onDraw");
+    }
+
+    private void refreshShowPic(int i) {
+        switch (i) {
+            case 0:
+                if (picIndex != 0) {
+                    showPics.put("current", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex))));
+                    showPics.put("next", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex + 1))));
+
+                    showPics.put("prev", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex - 1))));
+                }
+                break;
+            case 1:
+                if (picIndex + 1 < uriList.size()) {
+                    showPics.put("current", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex))));
+                    showPics.put("next", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex + 1))));
+                    showPics.put("prev", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(picIndex - 1))));
+                }
+                break;
+            default:
+                showPics.put("prev", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), R.drawable.defaule_pic)));
+                showPics.put("current", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(1))));
+                showPics.put("next", getCircleBitmap(width, BitmapFactory.decodeResource(getResources(), uriList.get(2))));
+                break;
+        }
+    }
+
+    private void initShowPics() {
+        refreshShowPic(3);
     }
 
     @Override
@@ -271,17 +312,17 @@ public class DiscView extends View implements View.OnClickListener {
         return Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth(), srcBitmap.getHeight(), matrix, true);
     }
 
-    private Bitmap getCircleBitmap(int width) {
-        if (pic == null) {
+    private Bitmap getCircleBitmap(int width, Bitmap srcBitmap) {
+        if (srcBitmap == null) {
             return null;
         }
-        int picWidth = pic.getWidth();
-        int picHeight = pic.getHeight();
+        int picWidth = srcBitmap.getWidth();
+        int picHeight = srcBitmap.getHeight();
         Log.e("jiefly", "width:" + picWidth + "height:" + picHeight);
         Matrix matrix = new Matrix();
         float scale = size * 2 * (3 * width) / (Math.min(picHeight, picWidth) * 8);
         matrix.postScale(scale, scale); //长和宽放大缩小的比例
-        Bitmap resizeBmp = Bitmap.createBitmap(pic, 0, 0, picWidth, picHeight, matrix, true);
+        Bitmap resizeBmp = Bitmap.createBitmap(srcBitmap, 0, 0, Math.min(picHeight, picWidth), Math.min(picHeight, picWidth), matrix, true);
 //        新建一个正方形的bitmap
         Bitmap target = Bitmap.createBitmap(Math.min(resizeBmp.getHeight(), resizeBmp.getWidth()), Math.min(resizeBmp.getHeight(), resizeBmp.getWidth()), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(target);
@@ -331,6 +372,7 @@ public class DiscView extends View implements View.OnClickListener {
 //        暂停旋转
         isRotate = false;
         invalidate();
+
         next = true;
         startTime = System.currentTimeMillis();
         invalidate();
@@ -340,8 +382,34 @@ public class DiscView extends View implements View.OnClickListener {
     public void prev() {
         isRotate = false;
         invalidate();
+
         prev = true;
         startTime = System.currentTimeMillis();
         invalidate();
+    }
+
+    float startX;
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                startX = event.getX();
+                break;
+            case MotionEvent.ACTION_UP:
+                if (event.getX() - startX > width / 10) {
+                    Log.e(TAG, "right swipe");
+                    prev();
+                }
+                if (event.getX() < startX && (startX - event.getX()) > width / 10) {
+                    Log.e(TAG, "left swipe");
+                    next();
+                }
+                if (Math.abs(1.0d * (event.getX() - startX)) < width / 100) {
+                    onClick(v);
+                }
+                break;
+        }
+        return false;
     }
 }
