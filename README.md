@@ -5,6 +5,7 @@
 ---------
 
 ![image](https://raw.githubusercontent.com/jiefly/DiscView/master/GIF_new.gif)
+左右滑动可以切换图片（带有切换动画）
 # 设置滑动手势
 ```
 //MainActivity
