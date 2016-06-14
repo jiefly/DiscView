@@ -4,7 +4,57 @@
 效果图：
 ---------
 
-![image](https://raw.githubusercontent.com/jiefly/DiscView/master/GIF.gif)
+![image](https://raw.githubusercontent.com/jiefly/DiscView/master/GIF_new.gif)
+# 设置滑动手势
+```
+//MainActivity
+discView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                discView.onTouch(v,event);
+                return true;
+            }
+        });
+//DiscView
+@Override
+    public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                startX = event.getX();
+                break;
+            case MotionEvent.ACTION_UP:
+                if (event.getX() - startX > width / 10) {
+                    Log.e(TAG, "right swipe");
+                    prev();
+                }
+                if (event.getX() < startX && (startX - event.getX()) > width / 10) {
+                    Log.e(TAG, "left swipe");
+                    next();
+                }
+                if (Math.abs(1.0d * (event.getX() - startX)) < width / 100) {
+                    onClick(v);
+                }
+                break;
+        }
+        return false;
+    }
+```
+# 设置切换时的图片
+```
+List<Integer> picList = new ArrayList<>();
+        picList.add(R.drawable.pic);
+
+        picList.add(R.drawable.pic_1);
+
+        picList.add(R.drawable.pic_2);
+
+        picList.add(R.drawable.pic_3);
+
+        picList.add(R.drawable.pic_4);
+
+        picList.add(R.drawable.pic_5);
+        discView.setUriList(picList);
+```
 
 view的宽高比被固定为1：1.25。
 ```
@@ -31,14 +81,7 @@ super.onMeasure(widthMeasureSpec, heightMeasureSpec);
  Bitmap bmp = BitmapFactory.decodeStream(getContentResolver().openInputStream(data.getData()));
      discView.setPic(bmp);
 ```
-通过DiscView的onclick方法可以让view停止/旋转
-```
-discView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                discView.onClick(v);
-            }
-        });
-```
+#通过点击view可以让view停止/旋转
+
 
 
